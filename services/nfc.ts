@@ -1,5 +1,23 @@
-import NfcManager, { NfcTech, Ndef, TagEvent, NfcEvents } from 'react-native-nfc-manager';
+import { Platform } from 'react-native';
 import { NFCPayload } from '@/types/workout';
+
+// Conditional imports for NFC (only on native platforms)
+let NfcManager: any = null;
+let NfcTech: any = null;
+let Ndef: any = null;
+let NfcEvents: any = null;
+
+if (Platform.OS !== 'web') {
+  try {
+    const nfcModule = require('react-native-nfc-manager');
+    NfcManager = nfcModule.default;
+    NfcTech = nfcModule.NfcTech;
+    Ndef = nfcModule.Ndef;
+    NfcEvents = nfcModule.NfcEvents;
+  } catch (error) {
+    console.warn('react-native-nfc-manager not available:', error);
+  }
+}
 
 export class NFCService {
   private static instance: NFCService;
@@ -13,6 +31,11 @@ export class NFCService {
   }
 
   async initialize(): Promise<boolean> {
+    if (Platform.OS === 'web' || !NfcManager) {
+      console.log('NFC not available on web platform');
+      return false;
+    }
+
     try {
       const supported = await NfcManager.isSupported();
       if (!supported) {
@@ -31,6 +54,10 @@ export class NFCService {
   }
 
   async isEnabled(): Promise<boolean> {
+    if (Platform.OS === 'web' || !NfcManager) {
+      return false;
+    }
+    
     try {
       return await NfcManager.isEnabled();
     } catch (error) {
@@ -40,6 +67,10 @@ export class NFCService {
   }
 
   async readNFCTag(): Promise<NFCPayload | null> {
+    if (Platform.OS === 'web' || !NfcManager) {
+      throw new Error('NFC not available on web platform');
+    }
+
     if (!this.isInitialized) {
       const initialized = await this.initialize();
       if (!initialized) {
@@ -133,7 +164,7 @@ export class NFCService {
       await NfcManager.registerTagEvent();
       
       // Set up listener
-      const tagEventListener = NfcManager.setEventListener(NfcEvents.DiscoverTag, async (tag: TagEvent) => {
+      const tagEventListener = NfcManager.setEventListener(NfcEvents.DiscoverTag, async (tag: any) => {
         try {
           console.log('Tag discovered:', tag);
           

@@ -42,11 +42,11 @@ export default function RootLayout() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <AuthProvider>
           <WorkoutProvider>
-            <NFCProvider>
-              <NotificationProvider>
+            <NotificationProvider>
+              <NFCProvider>
                 <AppWithNotifications />
-              </NotificationProvider>
-            </NFCProvider>
+              </NFCProvider>
+            </NotificationProvider>
           </WorkoutProvider>
         </AuthProvider>
       </GestureHandlerRootView>

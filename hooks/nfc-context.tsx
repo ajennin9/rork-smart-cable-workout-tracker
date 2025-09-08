@@ -1,10 +1,20 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useState, useCallback, useEffect } from 'react';
+import { Platform } from 'react-native';
 import { NFCPayload } from '@/types/workout';
-import { nfcService } from '@/services/nfc';
 import { useAuth } from '@/hooks/auth-context';
 import { useWorkout } from '@/hooks/workout-context';
 import { useNotification } from '@/hooks/notification-context';
+
+// Conditional import for NFC service (only on native platforms)
+let nfcService: any = null;
+if (Platform.OS !== 'web') {
+  try {
+    nfcService = require('@/services/nfc').nfcService;
+  } catch (error) {
+    console.warn('NFC service not available:', error);
+  }
+}
 
 interface NFCState {
   isNFCSupported: boolean;
@@ -59,6 +69,13 @@ export const [NFCProvider, useNFC] = createContextHook<NFCState>(() => {
   }, [currentSessionId, sessionTimeout, showNotification]);
 
   const initializeNFC = useCallback(async () => {
+    // Skip NFC initialization on web
+    if (Platform.OS === 'web' || !nfcService) {
+      console.log('NFC not available on web platform');
+      setIsNFCSupported(false);
+      return;
+    }
+
     try {
       const supported = await nfcService.initialize();
       setIsNFCSupported(supported);
@@ -74,6 +91,10 @@ export const [NFCProvider, useNFC] = createContextHook<NFCState>(() => {
   }, []);
 
   const readNFCTag = useCallback(async (): Promise<NFCPayload | null> => {
+    if (Platform.OS === 'web' || !nfcService) {
+      throw new Error('NFC not available on web platform');
+    }
+
     if (!isNFCSupported) {
       throw new Error('NFC not supported on this device');
     }
@@ -101,12 +122,16 @@ export const [NFCProvider, useNFC] = createContextHook<NFCState>(() => {
   }, [isNFCSupported, isNFCEnabled]);
 
   const startListening = useCallback(async () => {
+    if (Platform.OS === 'web' || !nfcService) {
+      throw new Error('NFC not available on web platform');
+    }
+
     if (!isNFCSupported || !isNFCEnabled) {
       throw new Error('NFC not available');
     }
 
     try {
-      await nfcService.startTagListener(async (payload) => {
+      await nfcService.startTagListener(async (payload: NFCPayload) => {
         setLastPayload(payload);
         await processNFCPayload(payload);
       });
@@ -117,6 +142,10 @@ export const [NFCProvider, useNFC] = createContextHook<NFCState>(() => {
   }, [isNFCSupported, isNFCEnabled]);
 
   const stopListening = useCallback(async () => {
+    if (Platform.OS === 'web' || !nfcService) {
+      return; // No-op on web
+    }
+
     try {
       await nfcService.stopTagListener();
     } catch (error) {
