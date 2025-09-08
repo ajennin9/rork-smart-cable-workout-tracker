@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider } from "@/hooks/auth-context";
 import { WorkoutProvider } from "@/hooks/workout-context";
 import { NotificationProvider, useNotification } from "@/hooks/notification-context";
+import { NFCProvider } from "@/hooks/nfc-context";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -41,9 +42,11 @@ export default function RootLayout() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <AuthProvider>
           <WorkoutProvider>
-            <NotificationProvider>
-              <AppWithNotifications />
-            </NotificationProvider>
+            <NFCProvider>
+              <NotificationProvider>
+                <AppWithNotifications />
+              </NotificationProvider>
+            </NFCProvider>
           </WorkoutProvider>
         </AuthProvider>
       </GestureHandlerRootView>

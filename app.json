@@ -14,28 +14,50 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "fit.ironiq.app"
+      "bundleIdentifier": "fit.ironiq.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "fit.ironiq.app"
+      "package": "fit.ironiq.app",
+      "permissions": [
+        "android.permission.NFC"
+      ]
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
     },
-  "plugins": [
-        [
-          "react-native-nfc-manager",
-          { "ios": { "alertMessage": "Hold near the gym device" } }
-        ],
-        ["expo-router", { "origin": "https://rork.com/" }],
-        "expo-font"
+    "plugins": [
+      [
+        "react-native-nfc-manager",
+        {
+          "ios": {
+            "alertMessage": "Hold near the gym device"
+          }
+        }
       ],
+      [
+        "expo-router",
+        {
+          "origin": "https://rork.com/"
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": "https://rork.com/"
+      },
+      "eas": {
+        "projectId": "ed20a4e2-80da-442e-9b95-6c6307d422c7"
+      }
     }
   }
 }

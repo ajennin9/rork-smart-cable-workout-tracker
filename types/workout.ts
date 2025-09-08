@@ -3,6 +3,7 @@ export interface User {
   email: string;
   displayName: string;
   nickname?: string;
+  preferredWeightUnit?: 'lbs' | 'kg'; // Default to 'lbs'
 }
 
 export interface Machine {
@@ -14,7 +15,7 @@ export interface Machine {
 export interface Set {
   setId: string;
   sessionId: string;
-  weightKg: number;
+  weightLbs: number;
   reps: number;
   durationMs: number;
 }
@@ -50,6 +51,28 @@ export interface SessionSummary {
 }
 
 // NFC Payloads
+export interface NFCPayload {
+  v: number;                    // Version
+  machine_id: string;           // Machine identifier
+  machine_name?: string;        // Human readable name
+  machine_type: string;         // Type of machine
+  session_id_tap_in: string;    // Current/new session ID
+  session_id_tap_out: string;   // Previous session ID
+  fw?: string;                  // Firmware version
+  
+  // Session data from the session_id_tap_out (if completed)
+  session_data?: {
+    start_time: number;         // Start timestamp (unix)
+    end_time: number;           // End timestamp (unix)
+    sets: Array<{
+      weight_lbs: number;       // Weight in lbs
+      reps: number;             // Reps
+      duration_ms: number;      // Duration in ms
+    }>;
+  };
+}
+
+// Legacy interfaces for backward compatibility
 export interface NFCHelloPayload {
   v: number;
   op: 'HELLO';
@@ -67,7 +90,7 @@ export interface NFCSessionPayload {
     s: number;
     e: number;
     sets: {
-      w: number;
+      w: number; // Weight in lbs
       r: number;
       d: number;
     }[];

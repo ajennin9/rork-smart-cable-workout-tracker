@@ -18,7 +18,7 @@ export function ExerciseSessionCard({ session, compact = false, isCurrentWorkout
   const machineInfo = getMachineInfo(session.machineId);
   
   const totalVolume = session.sets.reduce((total, set) => 
-    total + (set.weightKg * set.reps), 0);
+    total + (set.weightLbs * set.reps), 0);
   
   const totalReps = session.sets.reduce((total, set) => 
     total + set.reps, 0);
@@ -68,7 +68,7 @@ export function ExerciseSessionCard({ session, compact = false, isCurrentWorkout
                 <View key={index} style={styles.setRow}>
                   <Text style={styles.setNumber}>Set {index + 1}</Text>
                   <Text style={styles.setDetails}>
-                    {set.weightKg}kg × {set.reps} reps
+                    {set.weightLbs}lbs × {set.reps} reps
                   </Text>
                 </View>
               ))}
@@ -87,7 +87,7 @@ export function ExerciseSessionCard({ session, compact = false, isCurrentWorkout
           <View key={index} style={styles.setRow}>
             <Text style={styles.setNumber}>Set {index + 1}</Text>
             <Text style={styles.setDetails}>
-              {set.weightKg}kg × {set.reps} reps
+              {set.weightLbs}lbs × {set.reps} reps
             </Text>
           </View>
         ))}

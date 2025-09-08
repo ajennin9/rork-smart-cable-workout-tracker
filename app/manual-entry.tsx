@@ -20,7 +20,7 @@ import { useNotification } from '@/hooks/notification-context';
 import { ExerciseSession } from '@/types/workout';
 
 interface SetData {
-  weightKg: number;
+  weightLbs: number;
   reps: number;
 }
 
@@ -31,9 +31,9 @@ export default function ManualEntryScreen() {
   
   const [selectedExercise, setSelectedExercise] = useState<string>('');
   const [sets, setSets] = useState<SetData[]>([
-    { weightKg: 0, reps: 0 },
-    { weightKg: 0, reps: 0 },
-    { weightKg: 0, reps: 0 },
+    { weightLbs: 0, reps: 0 },
+    { weightLbs: 0, reps: 0 },
+    { weightLbs: 0, reps: 0 },
   ]);
   const [durationMinutes, setDurationMinutes] = useState<string>('0');
   const [durationSeconds, setDurationSeconds] = useState<string>('0');
@@ -41,7 +41,7 @@ export default function ManualEntryScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const addSet = () => {
-    setSets(prev => [...prev, { weightKg: 0, reps: 0 }]);
+    setSets(prev => [...prev, { weightLbs: 0, reps: 0 }]);
   };
 
   const removeSet = (index: number) => {
@@ -74,7 +74,7 @@ export default function ManualEntryScreen() {
     }
 
     // Check if any set has data
-    const hasValidSets = sets.some(set => set.weightKg > 0 || set.reps > 0);
+    const hasValidSets = sets.some(set => set.weightLbs > 0 || set.reps > 0);
     if (!hasValidSets) {
       Alert.alert('Error', 'Please add at least one set with weight or reps');
       return;
@@ -109,8 +109,8 @@ export default function ManualEntryScreen() {
         machineType: 'manual',
         startedAt: startTime.toISOString(),
         endedAt: now.toISOString(),
-        sets: sets.filter(set => set.weightKg > 0 || set.reps > 0).map(set => ({
-          weightKg: set.weightKg,
+        sets: sets.filter(set => set.weightLbs > 0 || set.reps > 0).map(set => ({
+          weightLbs: set.weightLbs,
           reps: set.reps,
           durationMs: totalDurationMs / sets.length, // Distribute duration across sets
         })),
@@ -198,11 +198,11 @@ export default function ManualEntryScreen() {
               
               <View style={styles.setInputs}>
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Weight (kg)</Text>
+                  <Text style={styles.inputLabel}>Weight (lbs)</Text>
                   <TextInput
                     style={styles.input}
-                    value={set.weightKg === 0 ? '' : set.weightKg.toString()}
-                    onChangeText={(value) => updateSet(index, 'weightKg', value)}
+                    value={set.weightLbs === 0 ? '' : set.weightLbs.toString()}
+                    onChangeText={(value) => updateSet(index, 'weightLbs', value)}
                     keyboardType="numeric"
                     placeholder="0"
                     placeholderTextColor={Colors.textLight}

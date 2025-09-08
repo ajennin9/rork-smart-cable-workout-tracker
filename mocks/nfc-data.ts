@@ -56,9 +56,9 @@ export const mockExercises = [
 
 export const generateMockSessionPayload = (machineIndex: number = 0): NFCSessionPayload => {
   const sets = [
-    { w: 40.8, r: 12, d: 38000 },
-    { w: 40.8, r: 10, d: 34000 },
-    { w: 45.3, r: 8, d: 32000 },
+    { w: 90, r: 12, d: 38000 }, // 90 lbs
+    { w: 90, r: 10, d: 34000 }, // 90 lbs  
+    { w: 100, r: 8, d: 32000 }, // 100 lbs
   ];
   
   const startTime = Math.floor(Date.now() / 1000) - 360;

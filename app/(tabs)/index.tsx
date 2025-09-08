@@ -8,14 +8,11 @@ import { ExerciseSessionCard } from '@/components/ExerciseSessionCard';
 import { useWorkout } from '@/hooks/workout-context';
 import { useAuth } from '@/hooks/auth-context';
 import { useNotification } from '@/hooks/notification-context';
+import { useNFC } from '@/hooks/nfc-context';
 import { ExerciseSession, WorkoutSession } from '@/types/workout';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback } from 'react';
-import { 
-  generateMockHelloPayload, 
-  generateMockSessionPayload,
-  mockMachines 
-} from '@/mocks/nfc-data';
+import { createMockNFCPayload } from '@/mocks/nfc-payloads';
 
 type HomeState = 'idle' | 'session-active' | 'session-review';
 
@@ -30,13 +27,22 @@ export default function HomeScreen() {
     getMachineInfo
   } = useWorkout();
   const { showNotification } = useNotification();
+  const { 
+    isNFCSupported, 
+    isNFCEnabled, 
+    isReading, 
+    readNFCTag, 
+    currentSessionId,
+    lastPayload,
+    processNFCPayload
+  } = useNFC();
   
   const params = useLocalSearchParams<{ updatedSession?: string; hasChanges?: string }>();
   
   const [homeState, setHomeState] = useState<HomeState>('idle');
   const [activeMachineId, setActiveMachineId] = useState<string | null>(null);
   const [pendingSession, setPendingSession] = useState<ExerciseSession | null>(null);
-  const [selectedMachineIndex, setSelectedMachineIndex] = useState(0);
+  const [isDevMode] = useState(__DEV__); // Enable dev mode in development builds
 
   // Handle returning from edit session screen
   useFocusEffect(
@@ -57,47 +63,57 @@ export default function HomeScreen() {
     }, [params.updatedSession, params.hasChanges])
   );
 
+  // Update home state based on NFC session status
   useEffect(() => {
-    if (!currentWorkout && homeState !== 'idle') {
+    if (currentSessionId) {
+      setHomeState('session-active');
+      setActiveMachineId(lastPayload?.machine_id || null);
+    } else if (!currentWorkout && homeState !== 'idle') {
       setHomeState('idle');
       setActiveMachineId(null);
       setPendingSession(null);
     }
-  }, [currentWorkout]);
+  }, [currentWorkout, currentSessionId, lastPayload]);
 
-  const handleSimulateTapIn = () => {
-    const payload = generateMockHelloPayload(selectedMachineIndex);
-    
-    if (!currentWorkout) {
-      startWorkout();
+  const handleNFCTap = async () => {
+    if (!isNFCSupported) {
+      Alert.alert('NFC Not Supported', 'Your device does not support NFC functionality.');
+      return;
     }
-    
-    setActiveMachineId(payload.machine_id);
-    setHomeState('session-active');
+
+    if (!isNFCEnabled) {
+      Alert.alert('NFC Disabled', 'Please enable NFC in your device settings and try again.');
+      return;
+    }
+
+    try {
+      await readNFCTag();
+    } catch (error: any) {
+      console.error('NFC read error:', error);
+      Alert.alert('NFC Error', error.message || 'Failed to read NFC tag. Please try again.');
+    }
   };
 
-  const handleSimulateTapOut = () => {
-    if (!activeMachineId || !user || !currentWorkout) return;
-    
-    const payload = generateMockSessionPayload(selectedMachineIndex);
-    
-    const session: ExerciseSession = {
-      sessionId: `session-${Date.now()}`,
-      userId: user.userId,
-      workoutId: currentWorkout.workoutId,
-      machineId: payload.machine_id,
-      machineType: 'cable_stack',
-      startedAt: new Date(payload.session.s * 1000).toISOString(),
-      endedAt: new Date(payload.session.e * 1000).toISOString(),
-      sets: payload.session.sets.map(set => ({
-        weightKg: set.w,
-        reps: set.r,
-        durationMs: set.d,
-      })),
-    };
-    
-    setPendingSession(session);
-    setHomeState('session-review');
+  // Development mode: simulate NFC with mock data
+  const handleDevModeNFC = async () => {
+    try {
+      const isFirstTap = !currentSessionId;
+      const mockPayload = createMockNFCPayload(
+        'Development Machine',
+        'dev-machine-001',
+        !isFirstTap // Has workout data on tap out
+      );
+      
+      // If we have an active session, update the session IDs to match
+      if (currentSessionId) {
+        mockPayload.session_id_tap_out = currentSessionId;
+      }
+      
+      await processNFCPayload(mockPayload);
+    } catch (error: any) {
+      console.error('Dev mode NFC error:', error);
+      Alert.alert('Dev Mode Error', error.message || 'Failed to process mock NFC data.');
+    }
   };
 
   const handleConfirmSession = async () => {
@@ -209,34 +225,40 @@ export default function HomeScreen() {
           Tap your phone to a machine to start an exercise
         </Text>
         
-        <View style={styles.simulatorContainer}>
-          <Text style={styles.simulatorLabel}>Simulate NFC (Development Mode)</Text>
-          <View style={styles.machineSelector}>
-            {mockMachines.map((machine, index) => (
-              <TouchableOpacity
-                key={machine.machineId}
-                style={[
-                  styles.machineOption,
-                  selectedMachineIndex === index && styles.machineOptionSelected
-                ]}
-                onPress={() => setSelectedMachineIndex(index)}
-              >
-                <Text style={[
-                  styles.machineOptionText,
-                  selectedMachineIndex === index && styles.machineOptionTextSelected
-                ]}>
-                  {machine.machineName}
-                </Text>
-              </TouchableOpacity>
-            ))}
+        {!isNFCSupported && (
+          <View style={styles.nfcWarning}>
+            <Text style={styles.nfcWarningText}>
+              NFC is not supported on this device
+            </Text>
           </View>
+        )}
+        
+        {isNFCSupported && !isNFCEnabled && (
+          <View style={styles.nfcWarning}>
+            <Text style={styles.nfcWarningText}>
+              NFC is disabled. Please enable it in device settings.
+            </Text>
+          </View>
+        )}
+        
+        <Button
+          title={isReading ? "Reading NFC..." : (isDevMode && !isNFCSupported ? "Simulate NFC Tap" : "Tap NFC Device")}
+          onPress={isDevMode && !isNFCSupported ? handleDevModeNFC : handleNFCTap}
+          variant="primary"
+          size="large"
+          disabled={isReading}
+        />
+        
+        {isDevMode && isNFCSupported && (
           <Button
-            title="Simulate Tap In"
-            onPress={handleSimulateTapIn}
-            variant="primary"
+            title="Simulate NFC (Dev Mode)"
+            onPress={handleDevModeNFC}
+            variant="secondary"
             size="large"
+            style={{ marginTop: 12 }}
+            disabled={isReading}
           />
-        </View>
+        )}
       </View>
       
       <View style={styles.manualExerciseSection}>
@@ -295,11 +317,12 @@ export default function HomeScreen() {
             Complete your sets, then tap your phone to the machine again to finish
           </Text>
           <Button
-            title="Simulate Tap Out"
-            onPress={handleSimulateTapOut}
+            title={isReading ? "Reading NFC..." : (isDevMode && !isNFCSupported ? "Simulate Tap Out" : "Tap to Finish")}
+            onPress={isDevMode && !isNFCSupported ? handleDevModeNFC : handleNFCTap}
             variant="secondary"
             size="large"
             style={styles.tapOutButton}
+            disabled={isReading}
           />
         </View>
       </View>
@@ -660,5 +683,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     lineHeight: 20,
+  },
+  nfcWarning: {
+    backgroundColor: Colors.warning + '20',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: Colors.warning,
+  },
+  nfcWarningText: {
+    color: Colors.warning,
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });

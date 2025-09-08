@@ -9,7 +9,7 @@ import { useWorkout } from '@/hooks/workout-context';
 import { ExerciseSession } from '@/types/workout';
 
 interface EditableSet {
-  weightKg: number;
+  weightLbs: number;
   reps: number;
   durationMs: number;
 }
@@ -60,7 +60,7 @@ export default function EditSessionScreen() {
   const addSet = () => {
     const lastSet = editableSets[editableSets.length - 1];
     const newSet: EditableSet = {
-      weightKg: lastSet?.weightKg || 50,
+      weightLbs: lastSet?.weightLbs || 110, // Default to 110 lbs instead of 50 kg
       reps: lastSet?.reps || 10,
       durationMs: lastSet?.durationMs || 30000,
     };
@@ -191,16 +191,16 @@ export default function EditSessionScreen() {
               
               <View style={styles.setInputs}>
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Weight (kg)</Text>
+                  <Text style={styles.inputLabel}>Weight (lbs)</Text>
                   <TextInput
                     style={styles.input}
-                    value={inputValues[`weightKg-${index}`] !== undefined ? inputValues[`weightKg-${index}`] : set.weightKg.toString()}
-                    onChangeText={(value) => updateSet(index, 'weightKg', value)}
+                    value={inputValues[`weightLbs-${index}`] !== undefined ? inputValues[`weightLbs-${index}`] : set.weightLbs.toString()}
+                    onChangeText={(value) => updateSet(index, 'weightLbs', value)}
                     onFocus={() => {
-                      setInputValues(prev => ({ ...prev, [`weightKg-${index}`]: '' }));
+                      setInputValues(prev => ({ ...prev, [`weightLbs-${index}`]: '' }));
                     }}
                     keyboardType="numeric"
-                    placeholder="50"
+                    placeholder="110"
                   />
                 </View>
                 
@@ -232,9 +232,9 @@ export default function EditSessionScreen() {
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>
-                {editableSets.reduce((total, set) => total + (set.weightKg * set.reps), 0).toFixed(0)}
+                {editableSets.reduce((total, set) => total + (set.weightLbs * set.reps), 0).toFixed(0)}
               </Text>
-              <Text style={styles.statLabel}>Total Volume (kg)</Text>
+              <Text style={styles.statLabel}>Total Volume (lbs)</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>

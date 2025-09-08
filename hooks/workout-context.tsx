@@ -181,7 +181,7 @@ export const [WorkoutProvider, useWorkout] = createContextHook<WorkoutState>(() 
       const endedAt = new Date().toISOString();
       const totalVolume = currentWorkout.exerciseSessions.reduce((total, session) => 
         total + session.sets.reduce((setTotal, set) => 
-          setTotal + (set.weightKg * set.reps), 0), 0);
+          setTotal + (set.weightLbs * set.reps), 0), 0);
       const totalSets = currentWorkout.exerciseSessions.reduce((total, session) => 
         total + session.sets.length, 0);
       
