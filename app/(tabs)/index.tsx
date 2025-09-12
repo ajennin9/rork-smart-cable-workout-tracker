@@ -104,9 +104,9 @@ export default function HomeScreen() {
         !isFirstTap // Has workout data on tap out
       );
       
-      // If we have an active session, update the session IDs to match
+      // If we have an active session, update the session IDs to match for recovery
       if (currentSessionId) {
-        mockPayload.session_id_tap_out = currentSessionId;
+        mockPayload.session_id_b = currentSessionId;
       }
       
       await processNFCPayload(mockPayload);

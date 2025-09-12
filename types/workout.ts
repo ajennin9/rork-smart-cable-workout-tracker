@@ -56,12 +56,40 @@ export interface NFCPayload {
   machine_id: string;           // Machine identifier
   machine_name?: string;        // Human readable name
   machine_type: string;         // Type of machine
-  session_id_tap_in: string;    // Current/new session ID
-  session_id_tap_out: string;   // Previous session ID
   fw?: string;                  // Firmware version
   
-  // Session data from the session_id_tap_out (if completed)
-  session_data?: {
+  // Exercise information
+  exercise_id: string;          // Exercise identifier
+  exercise_name?: string;       // Human readable exercise name
+  
+  // Multiple session IDs (newest first priority)
+  session_id_a: string;         // Current/newest session (fresh tap-in)
+  session_id_b?: string;        // Previous session
+  session_id_c?: string;        // Session before that
+  session_id_d?: string;        // Oldest session
+  
+  // Session data for completed sessions (only b, c, d have workout data)
+  session_data_b?: {
+    start_time: number;         // Start timestamp (unix)
+    end_time: number;           // End timestamp (unix)
+    sets: Array<{
+      weight_lbs: number;       // Weight in lbs
+      reps: number;             // Reps
+      duration_ms: number;      // Duration in ms
+    }>;
+  };
+  
+  session_data_c?: {
+    start_time: number;         // Start timestamp (unix)
+    end_time: number;           // End timestamp (unix)
+    sets: Array<{
+      weight_lbs: number;       // Weight in lbs
+      reps: number;             // Reps
+      duration_ms: number;      // Duration in ms
+    }>;
+  };
+  
+  session_data_d?: {
     start_time: number;         // Start timestamp (unix)
     end_time: number;           // End timestamp (unix)
     sets: Array<{
