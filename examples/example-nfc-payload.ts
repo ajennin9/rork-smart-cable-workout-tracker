@@ -22,19 +22,18 @@ export const exampleMultiSessionPayload: NFCPayload = {
   // Session data (only for completed sessions b, c, d)
   // No session_data_a because it's a fresh tap-in
   
+  // Session workout data (most recent completed sessions)
   session_data_b: {
-    start_time: 1725722280, // 2:28 PM (7 minutes ago)
-    end_time: 1725722640,   // 2:34 PM (1 minute ago)  
+    session_duration_ms: 420000, // 7 minutes total exercise time
     sets: [
-      { weight_lbs: 95, reps: 12, duration_ms: 48000 },
+      { weight_lbs: 95, reps: 12, duration_ms: 50000 },
       { weight_lbs: 100, reps: 10, duration_ms: 45000 },
       { weight_lbs: 105, reps: 8, duration_ms: 42000 }
     ]
   },
   
   session_data_c: {
-    start_time: 1725721320, // 2:12 PM (23 minutes ago)
-    end_time: 1725721680,   // 2:18 PM (17 minutes ago)
+    session_duration_ms: 540000, // 9 minutes total exercise time
     sets: [
       { weight_lbs: 80, reps: 15, duration_ms: 50000 },
       { weight_lbs: 85, reps: 12, duration_ms: 47000 },
@@ -44,8 +43,7 @@ export const exampleMultiSessionPayload: NFCPayload = {
   },
   
   session_data_d: {
-    start_time: 1725719880, // 1:58 PM (37 minutes ago)  
-    end_time: 1725720240,   // 2:04 PM (31 minutes ago)
+    session_duration_ms: 270000, // 4.5 minutes total exercise time
     sets: [
       { weight_lbs: 110, reps: 8, duration_ms: 45000 },
       { weight_lbs: 115, reps: 6, duration_ms: 43000 },
@@ -72,8 +70,7 @@ export const exampleLimitedPayload: NFCPayload = {
   // session_id_c and session_id_d omitted due to size constraints
   
   session_data_b: {
-    start_time: 1725722720, // 2:32 PM  
-    end_time: 1725723080,   // 2:38 PM
+    session_duration_ms: 360000, // 6 minutes total exercise time
     sets: [
       { weight_lbs: 150, reps: 10, duration_ms: 50000 },
       { weight_lbs: 155, reps: 8, duration_ms: 48000 },
@@ -100,8 +97,7 @@ export const exampleForgottenTapOutScenario: NFCPayload = {
   session_id_d: "session-20250912-143600-forgotten666", // Original user's session!
   
   session_data_b: {
-    start_time: 1725723120, // User 2's workout
-    end_time: 1725723480,
+    session_duration_ms: 360000, // 6 minutes total exercise time
     sets: [
       { weight_lbs: 200, reps: 12, duration_ms: 55000 },
       { weight_lbs: 220, reps: 10, duration_ms: 52000 }
@@ -109,8 +105,7 @@ export const exampleForgottenTapOutScenario: NFCPayload = {
   },
   
   session_data_c: {
-    start_time: 1725722640, // User 3's workout  
-    end_time: 1725723000,
+    session_duration_ms: 360000, // 6 minutes total exercise time
     sets: [
       { weight_lbs: 180, reps: 15, duration_ms: 48000 },
       { weight_lbs: 190, reps: 12, duration_ms: 46000 }
@@ -118,8 +113,7 @@ export const exampleForgottenTapOutScenario: NFCPayload = {
   },
   
   session_data_d: {
-    start_time: 1725722160, // Original user's "forgotten" workout
-    end_time: 1725722520,
+    session_duration_ms: 360000, // 6 minutes total exercise time
     sets: [
       { weight_lbs: 160, reps: 10, duration_ms: 45000 },
       { weight_lbs: 170, reps: 8, duration_ms: 43000 },

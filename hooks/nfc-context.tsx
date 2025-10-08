@@ -37,8 +37,7 @@ interface MatchedSessionData {
   slot: 'b' | 'c' | 'd';
   sessionId: string;
   data: {
-    start_time: number;
-    end_time: number;
+    session_duration_ms: number;
     sets: Array<{
       weight_lbs: number;
       reps: number;
@@ -48,13 +47,18 @@ interface MatchedSessionData {
 }
 
 // Helper function to find which session matches the current user session
-const findMatchingSession = (payload: NFCPayload, currentSessionId: string | null): MatchedSessionData | null => {
-  if (!currentSessionId) return null;
+const findMatchingSession = (payload: NFCPayload, currentSessionId: string | null, sessionStartTime: number | null): MatchedSessionData | null => {
+  if (!currentSessionId || !sessionStartTime) return null;
+  
+  // Check if session is within recovery window (1 hour from tap-in time)
+  const sessionAge = Date.now() - sessionStartTime;
+  if (sessionAge > SESSION_MAX_AGE_MS) {
+    return null; // Session too old for recovery
+  }
   
   // Check session_id_b
   if (payload.session_id_b === currentSessionId && payload.session_data_b) {
-    const sessionAge = Date.now() - (payload.session_data_b.end_time * 1000);
-    if (sessionAge <= SESSION_MAX_AGE_MS) {
+    if (payload.session_data_b.sets.length > 0) {
       return {
         slot: 'b',
         sessionId: payload.session_id_b,
@@ -65,8 +69,7 @@ const findMatchingSession = (payload: NFCPayload, currentSessionId: string | nul
   
   // Check session_id_c
   if (payload.session_id_c === currentSessionId && payload.session_data_c) {
-    const sessionAge = Date.now() - (payload.session_data_c.end_time * 1000);
-    if (sessionAge <= SESSION_MAX_AGE_MS) {
+    if (payload.session_data_c.sets.length > 0) {
       return {
         slot: 'c',
         sessionId: payload.session_id_c,
@@ -77,8 +80,7 @@ const findMatchingSession = (payload: NFCPayload, currentSessionId: string | nul
   
   // Check session_id_d
   if (payload.session_id_d === currentSessionId && payload.session_data_d) {
-    const sessionAge = Date.now() - (payload.session_data_d.end_time * 1000);
-    if (sessionAge <= SESSION_MAX_AGE_MS) {
+    if (payload.session_data_d.sets.length > 0) {
       return {
         slot: 'd',
         sessionId: payload.session_id_d,
@@ -100,6 +102,7 @@ export const [NFCProvider, useNFC] = createContextHook<NFCState>(() => {
   const [isReading, setIsReading] = useState(false);
   const [lastPayload, setLastPayload] = useState<NFCPayload | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [currentSessionStartTime, setCurrentSessionStartTime] = useState<number | null>(null);
   const [sessionTimeout, setSessionTimeout] = useState<number | null>(null);
 
   // Initialize NFC on mount
@@ -232,7 +235,7 @@ export const [NFCProvider, useNFC] = createContextHook<NFCState>(() => {
     }
 
     // Check if this is a tap out (current session matches any of the session IDs with workout data)
-    const matchedSession = findMatchingSession(payload, currentSessionId);
+    const matchedSession = findMatchingSession(payload, currentSessionId, currentSessionStartTime);
     if (matchedSession) {
       console.log(`Tap out detected - found session data in ${matchedSession.slot}`);
       await handleTapOut(payload, matchedSession);
@@ -243,7 +246,7 @@ export const [NFCProvider, useNFC] = createContextHook<NFCState>(() => {
     console.log('Tap in detected - starting new session');
     await handleTapIn(payload);
 
-  }, [user, lastPayload, currentSessionId, showNotification]);
+  }, [user, lastPayload, currentSessionId, currentSessionStartTime, showNotification]);
 
   const handleTapIn = useCallback(async (payload: NFCPayload) => {
     try {
@@ -267,6 +270,7 @@ export const [NFCProvider, useNFC] = createContextHook<NFCState>(() => {
 
       // Set new current session
       setCurrentSessionId(payload.session_id_a);
+      setCurrentSessionStartTime(Date.now());
       
       showNotification(
         `Started session on ${payload.machine_name || payload.machine_id}`
@@ -297,14 +301,18 @@ export const [NFCProvider, useNFC] = createContextHook<NFCState>(() => {
         const sessionData = matchedSession.data;
         console.log('Recovering session from device:', matchedSession);
 
+        // Calculate session timing using app's tap-in time and current time
+        const tapOutTime = Date.now();
+        const tapInTime = currentSessionStartTime || (tapOutTime - SESSION_MAX_AGE_MS); // Fallback if no start time
+        
         const session = {
           sessionId: `session-${Date.now()}`,
           userId: user.userId,
           workoutId: currentWorkout.workoutId,
           machineId: payload.machine_id,
           machineType: payload.machine_type,
-          startedAt: new Date(sessionData.start_time * 1000).toISOString(),
-          endedAt: new Date(sessionData.end_time * 1000).toISOString(),
+          startedAt: new Date(tapInTime).toISOString(),
+          endedAt: new Date(tapOutTime).toISOString(),
           sets: sessionData.sets.map((set: {
             weight_lbs: number;
             reps: number;
@@ -328,12 +336,13 @@ export const [NFCProvider, useNFC] = createContextHook<NFCState>(() => {
 
       // Clear current session
       setCurrentSessionId(null);
+      setCurrentSessionStartTime(null);
 
     } catch (error) {
       console.error('Failed to handle tap out:', error);
       showNotification('Failed to save workout data');
     }
-  }, [currentWorkout, user, addExerciseSession, sessionTimeout, showNotification]);
+  }, [currentWorkout, user, addExerciseSession, sessionTimeout, currentSessionStartTime, showNotification]);
 
   const clearCurrentSession = useCallback(() => {
     if (sessionTimeout) {
@@ -341,6 +350,7 @@ export const [NFCProvider, useNFC] = createContextHook<NFCState>(() => {
       setSessionTimeout(null);
     }
     setCurrentSessionId(null);
+    setCurrentSessionStartTime(null);
   }, [sessionTimeout]);
 
   return {

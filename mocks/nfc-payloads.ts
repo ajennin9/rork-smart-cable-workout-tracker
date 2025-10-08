@@ -23,14 +23,10 @@ export const createMockNFCPayload = (
   };
 
   if (isWithWorkoutData && completedSessionId) {
-    const endTime = Math.floor(Date.now() / 1000);
-    const startTime = endTime - 360; // 6 minutes ago
-    
     // Add completed session data to slot b
     basePayload.session_id_b = completedSessionId;
     basePayload.session_data_b = {
-      start_time: startTime,
-      end_time: endTime,
+      session_duration_ms: 180000, // 3 minutes total exercise time
       sets: [
         { weight_lbs: 90, reps: 12, duration_ms: 45000 },
         { weight_lbs: 95, reps: 10, duration_ms: 40000 },
@@ -80,8 +76,7 @@ export const createRecoveryPayload = (
     // Recent completed sessions (within 1 hour)
     session_id_b: `session-${now - 600000}-recent`, // 10 min ago
     session_data_b: {
-      start_time: Math.floor((now - 900000) / 1000), // 15 min ago
-      end_time: Math.floor((now - 600000) / 1000),   // 10 min ago
+      session_duration_ms: 90000, // 1.5 minutes total exercise time
       sets: [
         { weight_lbs: 80, reps: 10, duration_ms: 30000 },
         { weight_lbs: 85, reps: 8, duration_ms: 28000 },
@@ -91,8 +86,7 @@ export const createRecoveryPayload = (
     
     session_id_c: `session-${now - 1800000}-older`, // 30 min ago
     session_data_c: {
-      start_time: Math.floor((now - 2100000) / 1000), // 35 min ago
-      end_time: Math.floor((now - 1800000) / 1000),   // 30 min ago
+      session_duration_ms: 65000, // 1.08 minutes total exercise time
       sets: [
         { weight_lbs: 75, reps: 12, duration_ms: 35000 },
         { weight_lbs: 80, reps: 10, duration_ms: 30000 },

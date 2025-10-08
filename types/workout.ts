@@ -70,32 +70,29 @@ export interface NFCPayload {
   
   // Session data for completed sessions (only b, c, d have workout data)
   session_data_b?: {
-    start_time: number;         // Start timestamp (unix)
-    end_time: number;           // End timestamp (unix)
+    session_duration_ms: number; // Total exercise time (first rep to last rep)
     sets: Array<{
       weight_lbs: number;       // Weight in lbs
       reps: number;             // Reps
-      duration_ms: number;      // Duration in ms
+      duration_ms: number;      // Individual set duration
     }>;
   };
   
   session_data_c?: {
-    start_time: number;         // Start timestamp (unix)
-    end_time: number;           // End timestamp (unix)
+    session_duration_ms: number; // Total exercise time (first rep to last rep)
     sets: Array<{
       weight_lbs: number;       // Weight in lbs
       reps: number;             // Reps
-      duration_ms: number;      // Duration in ms
+      duration_ms: number;      // Individual set duration
     }>;
   };
   
   session_data_d?: {
-    start_time: number;         // Start timestamp (unix)
-    end_time: number;           // End timestamp (unix)
+    session_duration_ms: number; // Total exercise time (first rep to last rep)
     sets: Array<{
       weight_lbs: number;       // Weight in lbs
       reps: number;             // Reps
-      duration_ms: number;      // Duration in ms
+      duration_ms: number;      // Individual set duration
     }>;
   };
 }
