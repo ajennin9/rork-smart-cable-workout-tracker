@@ -166,7 +166,7 @@ export const [NFCProvider, useNFC] = createContextHook<NFCState>(() => {
 
     try {
       setIsReading(true);
-      const payload = await nfcService.readNFCTag();
+      const payload = await nfcService.readTag();
       
       if (payload) {
         setLastPayload(payload);
