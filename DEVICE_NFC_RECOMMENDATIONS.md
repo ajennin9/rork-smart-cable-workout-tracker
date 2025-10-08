@@ -1,74 +1,103 @@
-# NFC Device Compatibility Recommendations
+# NFC Device Compatibility - Implementation Plan
 
-## Current Issue
-iOS Core NFC framework has limited support for reading raw memory from ISO15693 tags. While the tag is detected, iOS only provides basic identification data:
-- Tag ID
-- Manufacturer Code  
-- Serial Number
-- Technology Type
+## ✅ APPROVED SOLUTION: NDEF with MIME Records
 
-No access to user data memory or raw memory blocks.
+### Device Implementation Plan (CONFIRMED)
+The device team will implement NDEF formatting on ST25DV16K tags using:
 
-## Recommended Solutions
+**NDEF Structure:**
+- **Capability Container (CC)** at memory start
+- **NDEF TLV (0x03)** containing single NDEF message  
+- **Single NDEF Record** with TNF=Media-type (MIME)
+- **MIME Type**: `application/json`
+- **Payload**: Raw JSON string (no schema changes)
+- **Terminator TLV (0xFE)** after message
 
-### Option 1: NDEF Format (Highly Recommended)
-Format your JSON data as NDEF records instead of raw memory writes:
+**Safe Update Sequence:**
+1. Set NDEF TLV length to 0 (invalidate)
+2. Write complete NDEF record payload  
+3. Set correct NDEF TLV length (validate)
+4. Ensure terminator TLV in place
 
-**NDEF Text Record Structure:**
+### App Compatibility (READY)
+✅ **MIME Record Support**: App now detects `application/json` MIME records  
+✅ **Fallback Support**: Still handles Text records for compatibility  
+✅ **JSON Parsing**: No changes needed to payload structure  
+✅ **iOS Compatible**: NDEF reading works on iOS Core NFC
+
+### Technical Specifications
+
+**NDEF Record Format:**
 ```
-- NDEF Header
-- Type: "T" (Text Record)
-- Language: "en" 
-- Payload: Your JSON string
+TNF: 0x02 (Media-type/MIME)
+Type: "application/json" (15 bytes)
+Payload: JSON string (variable, ~300 bytes typical)
 ```
 
-**Device Implementation:**
-```c
-// Instead of raw memory write to address 0x0000
-// Write as NDEF Text Record
-ndef_text_record_t record = {
-    .type = NDEF_TYPE_TEXT,
-    .language = "en",
-    .payload = json_string,
-    .payload_length = strlen(json_string)
-};
-write_ndef_record(&record);
+**Memory Layout:**
+```
+Block 0-1: Capability Container (CC)
+Block 2+:  NDEF TLV + Record + Terminator
+Remaining: Available for future use
 ```
 
-### Option 2: Alternative NFC Tag Types
-Consider using NFC tag types with better iOS support:
+**Size Constraints:**
+- Tag Size: 2KB total
+- Payload Cap: 1KB (recommended safety limit)
+- Current Usage: ~300 bytes (comfortable margin)
 
-**NTAG213/215/216 (Type 2)**
-- Full iOS compatibility
-- 144/504/924 bytes user memory
-- Direct memory access available
-- Better for small JSON payloads
+### Benefits of This Approach
 
-**MIFARE Classic (if supported by device)**
-- Good iOS support via Core NFC
-- Multiple sectors available
-- Well-documented iOS APIs
+1. **iOS Compatibility**: Native NDEF reading support
+2. **Standards Compliant**: Works with generic NFC tools
+3. **Semantic Correctness**: JSON as MIME type, not text
+4. **Safe Updates**: Two-phase write prevents corruption
+5. **Tool Support**: NFC Tools, ST apps can read/display
+6. **Future Proof**: Room for payload growth within limits
 
-### Option 3: Enhanced ST25DV Configuration
-If staying with ST25DV, ensure NDEF formatting:
+### Testing Plan
 
-**ST25DV NDEF Setup:**
-1. Write Capability Container (CC) at block 0
-2. Format NDEF TLV structure
-3. Write JSON as NDEF Text Record
-4. Update NDEF length in TLV
+**Phase 1: Basic NDEF**
+- [ ] Format device with Type 5 NDEF structure
+- [ ] Test iOS app NDEF reading
+- [ ] Verify with NFC Tools app
+- [ ] Confirm JSON parsing works
 
-## Current App Support
-The app already supports NDEF reading and will automatically:
-1. Try ISO15693 raw memory (for Android/other platforms)
-2. Fall back to NDEF reading (for iOS compatibility)
-3. Parse JSON from either source
+**Phase 2: Write Cycles** 
+- [ ] Exercise set finalize → verify JSON update
+- [ ] Tap-out rotation → verify session data rotation
+- [ ] Multiple rapid updates → verify safe update sequence
 
-## Testing Recommendations
-1. Format one tag with NDEF containing sample JSON
-2. Test with iOS app to verify reading works
-3. Compare performance vs raw memory approach
-4. Consider hybrid approach: raw memory for Android, NDEF for iOS
+**Phase 3: Edge Cases**
+- [ ] Read during write → app retry logic
+- [ ] Large payloads → size limit enforcement  
+- [ ] Generic NFC tool compatibility
+
+### Device Questions - ANSWERED
+
+**Q: MIME type `application/json` acceptable?**  
+✅ **YES** - Perfect choice, app ready to handle
+
+**Q: Single record sufficient?**  
+✅ **YES** - One JSON record contains all needed data
+
+**Q: Maximum payload size?**  
+✅ **1KB recommended cap** - Current ~300 bytes, plenty of headroom
+
+---
+
+## Previous Research (Historical)
+
+### iOS NFC Limitations Discovered
+iOS Core NFC framework cannot read raw memory from ISO15693 tags:
+- Only provides basic identification (ID, manufacturer, serial)
+- No access to user data memory or raw memory blocks
+- NDEF reading works perfectly
+
+### Alternative Options Evaluated
+1. **NTAG213/215/216**: Good iOS support but hardware change required
+2. **Raw Memory**: Works Android only, iOS incompatible  
+3. **NDEF Format**: ✅ Chosen solution - universal compatibility
 
 ## Sample NDEF JSON Structure
 ```json

@@ -74,13 +74,10 @@ export const testNdefPayload: NFCPayload = {
 
 // This is what the NDEF record should look like when written by your device
 export const expectedNdefRecord = {
-  type: [0x54], // "T" for Text Record
+  tnf: 0x02, // Media-type (MIME) 
+  type: new TextEncoder().encode('application/json'), // "application/json" as bytes
   id: [],
-  payload: [
-    0x02, // Status byte (UTF-8, language length = 2)
-    0x65, 0x6E, // "en" language code
-    ...new TextEncoder().encode(JSON.stringify(testNdefPayload))
-  ]
+  payload: new TextEncoder().encode(JSON.stringify(testNdefPayload)) // Raw JSON bytes
 };
 
 // Raw NDEF message structure that your device should write
@@ -95,16 +92,15 @@ export const ndefBytes = [
   0x00, 0xFF, // Length (will be calculated based on actual payload)
   
   // NDEF Record header
-  0xD1, // MB=1, ME=1, CF=0, SR=1, IL=0, TNF=1 (Well-known type)
-  0x01, // Type Length = 1
+  0xD2, // MB=1, ME=1, CF=0, SR=1, IL=0, TNF=2 (Media-type)
+  0x10, // Type Length = 16 ("application/json")
   0x00, // Payload Length (high byte, will be calculated)
   0x00, // Payload Length (low byte, will be calculated)
-  0x54, // Type = "T" (Text)
   
-  // Payload
-  0x02, // Status: UTF-8, language length = 2
-  0x65, 0x6E, // "en"
-  // JSON payload bytes follow...
+  // Type field: "application/json"
+  0x61, 0x70, 0x70, 0x6C, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6F, 0x6E, 0x2F, 0x6A, 0x73, 0x6F, 0x6E,
+  
+  // Payload: Raw JSON bytes follow...
   
   // NDEF TLV terminator
   0xFE

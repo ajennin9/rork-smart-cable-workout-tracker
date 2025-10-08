@@ -296,8 +296,23 @@ export class NFCService {
         throw new Error('No payload found in NDEF record');
       }
 
-      // Convert payload to string (assuming UTF-8 encoding)
-      const payloadString = this.parseNdefPayload(record.payload);
+      console.log('NDEF Record type:', record.type);
+      console.log('NDEF Record TNF:', record.tnf);
+
+      // Convert payload to string based on record type
+      let payloadString: string;
+      
+      // Check if this is our expected application/json MIME record
+      if (record.type && this.isJsonMimeRecord(record)) {
+        console.log('Found application/json MIME record');
+        // For MIME records, payload is the raw JSON (no language prefix)
+        payloadString = this.bytesToString(record.payload);
+      } else {
+        console.log('Found text or other record type, using standard parsing');
+        // Fallback to standard NDEF text parsing (handles language codes)
+        payloadString = this.parseNdefPayload(record.payload);
+      }
+      
       console.log('Raw NFC payload:', payloadString);
 
       // Parse JSON
@@ -321,6 +336,25 @@ export class NFCService {
         console.error('Failed to cancel NFC request:', cancelError);
       }
     }
+  }
+
+  private isJsonMimeRecord(record: any): boolean {
+    // Check if this is a MIME record (TNF = 0x02) with application/json type
+    const tnf = record.tnf;
+    const type = record.type;
+    
+    // TNF 0x02 = Media-type (MIME)
+    if (tnf === 0x02) {
+      // Type should be "application/json"
+      const typeString = Array.isArray(type) 
+        ? String.fromCharCode(...type) 
+        : type?.toString() || '';
+      
+      console.log('MIME type string:', typeString);
+      return typeString === 'application/json';
+    }
+    
+    return false;
   }
 
   private parseNdefPayload(payload: number[]): string {
