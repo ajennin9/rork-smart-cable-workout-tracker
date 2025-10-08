@@ -97,56 +97,114 @@ export class NFCService {
 
   private async readISO15693RawMemory(): Promise<NFCPayload | null> {
     try {
-      // Request ISO15693 technology (also known as NfcV)
-      await NfcManager.requestTechnology(NfcTech.NfcV);
+      // For iOS, try different technology request approaches
+      let tag: any = null;
       
-      const tag = await NfcManager.getTag();
-      console.log('ISO15693 Tag detected:', tag);
-
-      if (!tag || !tag.tech?.includes('iso15693')) {
-        throw new Error('Not an ISO15693 tag');
-      }
-
-      // Log available NfcManager methods for debugging
-      console.log('Available NfcManager methods:', Object.getOwnPropertyNames(NfcManager));
-
-      // Try to read the tag's raw user data area
-      // Different approaches based on available methods
-      let allBytes: number[] = [];
-      
-      // Method 1: Try direct memory reading if available
-      if (typeof NfcManager.nfcVHandlerReadSingleBlock === 'function') {
-        console.log('Using nfcVHandlerReadSingleBlock method');
-        allBytes = await this.readBlocksSequentially(NfcManager.nfcVHandlerReadSingleBlock.bind(NfcManager));
-      } else if (typeof NfcManager.iso15693HandlerReadSingleBlock === 'function') {
-        console.log('Using iso15693HandlerReadSingleBlock method');
-        allBytes = await this.readBlocksSequentially(NfcManager.iso15693HandlerReadSingleBlock.bind(NfcManager));
-      } else if (typeof NfcManager.readNfcVSingleBlock === 'function') {
-        console.log('Using readNfcVSingleBlock method');
-        allBytes = await this.readBlocksSequentially(NfcManager.readNfcVSingleBlock.bind(NfcManager));
-      } else {
-        // Method 2: Try to extract raw data from tag object if methods aren't available
-        console.log('No block reading methods available, checking tag object for raw data');
+      // Try NfcV technology first (iOS standard for ISO15693)
+      try {
+        await NfcManager.requestTechnology(NfcTech.NfcV || 'NfcV');
+        tag = await NfcManager.getTag();
+        console.log('ISO15693 Tag detected via NfcV:', tag);
+      } catch (nfcVError) {
+        console.log('NfcV failed, trying alternative approach:', nfcVError);
         
-        if (tag.userData) {
+        // Try with Iso15693 if available
+        try {
+          await NfcManager.requestTechnology(NfcTech.Iso15693 || 'Iso15693');
+          tag = await NfcManager.getTag();
+          console.log('ISO15693 Tag detected via Iso15693:', tag);
+        } catch (iso15693Error) {
+          console.log('Iso15693 failed, trying NDEF as fallback:', iso15693Error);
+          throw new Error('Could not establish ISO15693 connection');
+        }
+      }
+      
+      // Check available methods for block reading
+      const availableMethods = Object.getOwnPropertyNames(NfcManager).filter(key => 
+        typeof NfcManager[key] === 'function'
+      );
+      console.log('Available NfcManager methods:', availableMethods);
+      
+      let allBytes: number[] = [];
+
+      // For iOS, try using native iOS NFC commands
+      if (typeof NfcManager.sendCommandAPDUIOS === 'function') {
+        console.log('Using iOS-specific sendCommandAPDUIOS method');
+        try {
+          // ISO15693 read single block command for ST25DV
+          // Command: [Flags, Command, Optional UID, Block Number]
+          // 0x22 = flags (addressed mode, high data rate)
+          // 0x20 = read single block command
+          const uid = tag?.id ? this.hexStringToBytes(tag.id) : [];
+          
+          for (let blockNum = 0; blockNum < 32; blockNum++) {
+            try {
+              const command = [0x22, 0x20, ...uid, blockNum];
+              console.log(`Sending ISO15693 command for block ${blockNum}:`, command);
+              
+              const response = await NfcManager.sendCommandAPDUIOS(command);
+              console.log(`Block ${blockNum} response:`, response);
+              
+              if (response && response.length > 1) {
+                // First byte is status, rest is data
+                const blockData = response.slice(1);
+                allBytes = allBytes.concat(blockData);
+                
+                // Check for null terminator
+                if (blockData.includes(0)) {
+                  const nullIndex = allBytes.indexOf(0);
+                  if (nullIndex !== -1) {
+                    allBytes = allBytes.slice(0, nullIndex);
+                    break;
+                  }
+                }
+              } else {
+                break; // No more data
+              }
+            } catch (blockError) {
+              console.log(`Block ${blockNum} read failed, stopping:`, blockError);
+              break;
+            }
+          }
+        } catch (commandError) {
+          console.error('iOS APDU command failed:', commandError);
+          throw new Error('Failed to read data using iOS NFC commands');
+        }
+      } else {
+        console.log('No iOS-specific commands available, checking tag object for raw data');
+        
+        // Check if the tag object itself contains useful data
+        if (tag?.rawData) {
+          console.log('Found rawData in tag object');
+          allBytes = Array.isArray(tag.rawData) ? tag.rawData : Array.from(tag.rawData);
+        } else if (tag?.ndefMessage && tag.ndefMessage.length > 0) {
+          console.log('Found NDEF message, extracting payload');
+          const payload = tag.ndefMessage[0]?.payload;
+          if (payload) {
+            allBytes = Array.isArray(payload) ? payload : Array.from(payload);
+          }
+        } else if (tag?.userData) {
           console.log('Found userData in tag:', tag.userData);
           allBytes = Array.isArray(tag.userData) ? tag.userData : Array.from(tag.userData);
-        } else if (tag.memory) {
+        } else if (tag?.memory) {
           console.log('Found memory in tag:', tag.memory);
           allBytes = Array.isArray(tag.memory) ? tag.memory : Array.from(tag.memory);
-        } else if (tag.data) {
+        } else if (tag?.data) {
           console.log('Found data in tag:', tag.data);
           allBytes = Array.isArray(tag.data) ? tag.data : Array.from(tag.data);
         } else {
+          // Log all available tag properties for debugging
+          console.log('Available tag properties:', Object.keys(tag || {}));
+          console.log('Tag object:', JSON.stringify(tag, null, 2));
           throw new Error('No method available to read ISO15693 raw memory');
         }
       }
 
       if (allBytes.length === 0) {
-        throw new Error('No data found in ISO15693 memory');
+        throw new Error('No data read from ISO15693 tag');
       }
 
-      // Convert bytes to string
+      // Convert bytes to string and parse JSON
       const jsonData = this.bytesToString(allBytes);
       console.log('Raw ISO15693 JSON data:', jsonData);
 
@@ -275,6 +333,16 @@ export class NFCService {
   private bytesToString(bytes: number[]): string {
     // Convert byte array directly to UTF-8 string
     return String.fromCharCode(...bytes);
+  }
+
+  private hexStringToBytes(hex: string): number[] {
+    // Remove any spaces or colons and convert hex string to byte array
+    const cleanHex = hex.replace(/[:\s]/g, '');
+    const bytes = [];
+    for (let i = 0; i < cleanHex.length; i += 2) {
+      bytes.push(parseInt(cleanHex.substr(i, 2), 16));
+    }
+    return bytes;
   }
 
   private async parseJSONWithRetry(jsonData: string, maxRetries: number = 3): Promise<NFCPayload> {
