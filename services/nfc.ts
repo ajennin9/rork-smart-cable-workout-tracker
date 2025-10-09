@@ -147,11 +147,53 @@ export class NFCService {
       );
       console.log('Available NfcManager methods:', availableMethods);
       
+      // FIRST: Check if tag already contains NDEF message (device team's implementation)
+      if (tag?.ndefMessage && tag.ndefMessage.length > 0) {
+        console.log('Found NDEF message in ISO15693 tag object!');
+        const record = tag.ndefMessage[0];
+        
+        if (record?.payload) {
+          console.log('NDEF Record type:', record.type);
+          console.log('NDEF Record TNF:', record.tnf);
+          
+          // Check if this is our expected application/json MIME record
+          if (this.isJsonMimeRecord(record)) {
+            console.log('Found application/json MIME record in ISO15693 tag');
+            // For MIME records, payload is the raw JSON (no language prefix)
+            const jsonData = this.bytesToString(record.payload);
+            console.log('Raw NFC payload from ISO15693 NDEF:', jsonData);
+            
+            // Parse JSON
+            try {
+              const nfcData = JSON.parse(jsonData) as NFCPayload;
+              console.log('Parsed NFC data from ISO15693 NDEF:', nfcData);
+              return nfcData;
+            } catch (parseError) {
+              console.error('Failed to parse JSON from ISO15693 NDEF:', parseError);
+              // Continue to fallback methods
+            }
+          } else {
+            console.log('Found non-JSON NDEF record, trying standard parsing');
+            // Fallback to standard NDEF text parsing
+            const jsonData = this.parseNdefPayload(record.payload);
+            console.log('Raw NFC payload from ISO15693 NDEF (text):', jsonData);
+            
+            try {
+              const nfcData = JSON.parse(jsonData) as NFCPayload;
+              console.log('Parsed NFC data from ISO15693 NDEF (text):', nfcData);
+              return nfcData;
+            } catch (parseError) {
+              console.error('Failed to parse JSON from ISO15693 NDEF (text):', parseError);
+              // Continue to fallback methods
+            }
+          }
+        }
+      }
+      
       let allBytes: number[] = [];
 
-      // iOS doesn't support raw ISO15693 memory reading well
-      // Try to find any data in the tag object itself
-      console.log('Checking tag object for available data properties...');
+      // SECOND: Try raw memory reading methods (for backward compatibility)
+      console.log('No NDEF found, checking tag object for raw data properties...');
       
       // Check if the tag object itself contains useful data
       if (tag?.rawData) {
@@ -176,31 +218,7 @@ export class NFCService {
         // Log all available tag properties for debugging
         console.log('Available tag properties:', Object.keys(tag || {}));
         console.log('Complete tag object:', JSON.stringify(tag, null, 2));
-        
-        // Try to request NDEF data as a last resort
-        try {
-          console.log('Attempting to read any NDEF data from ISO15693 tag...');
-          
-          // Cancel current technology request first
-          await NfcManager.cancelTechnologyRequest();
-          
-          // Try NDEF technology request
-          await NfcManager.requestTechnology(NfcTech.Ndef);
-          const ndefTag = await NfcManager.getTag();
-          
-          if (ndefTag?.ndefMessage && ndefTag.ndefMessage.length > 0) {
-            console.log('Found NDEF message in ISO15693 tag');
-            const payload = ndefTag.ndefMessage[0]?.payload;
-            if (payload) {
-              allBytes = Array.isArray(payload) ? payload : Array.from(payload);
-            }
-          } else {
-            throw new Error('No NDEF data found either');
-          }
-        } catch (ndefError) {
-          console.log('NDEF read also failed:', ndefError);
-          throw new Error('No method available to read ISO15693 data on iOS - tag may need to be formatted as NDEF');
-        }
+        throw new Error('No NDEF data or raw memory accessible on iOS - tag may need NDEF formatting');
       }
 
       if (allBytes.length === 0) {
