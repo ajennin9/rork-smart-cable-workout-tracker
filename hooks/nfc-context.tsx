@@ -216,8 +216,12 @@ export const [NFCProvider, useNFC] = createContextHook<NFCState>(() => {
   }, []);
 
   const processNFCPayload = useCallback(async (payload: NFCPayload) => {
+    console.log('processNFCPayload called with user:', user);
+    console.log('User state:', { user: user ? 'present' : 'null', userId: user?.userId });
+    
     if (!user) {
       console.error('No user authenticated');
+      console.error('Auth context user state:', user);
       return;
     }
 
