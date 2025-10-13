@@ -378,6 +378,7 @@ export const [NFCProvider, useNFC] = createContextHook<NFCState>(() => {
       try {
         activeWorkout = await startWorkout();
         console.log('Created new workout for tap out:', activeWorkout.workoutId);
+        // Note: startWorkout should update the workout context's currentWorkout automatically
       } catch (error) {
         console.error('Failed to start workout for tap out:', error);
         showNotification('Failed to process workout data');

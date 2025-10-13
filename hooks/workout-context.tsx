@@ -23,7 +23,7 @@ interface WorkoutState {
   isLoading: boolean;
   startWorkout: () => Promise<WorkoutSession>;
   endWorkout: () => Promise<void>;
-  addExerciseSession: (session: ExerciseSession) => Promise<void>;
+  addExerciseSession: (session: ExerciseSession, targetWorkoutId?: string) => Promise<void>;
   getLastSessionForMachine: (machineId: string) => ExerciseSession | null;
   getMachineInfo: (machineId: string) => Machine | null;
   addManualExercise: (session: ExerciseSession, exerciseName: string) => Promise<void>;
@@ -267,16 +267,47 @@ export const [WorkoutProvider, useWorkout] = createContextHook<WorkoutState>(() 
     return null;
   }, [manualExerciseNames]);
 
-  const addExerciseSession = useCallback(async (session: ExerciseSession) => {
-    if (!currentWorkout || !user) return;
+  const addExerciseSession = useCallback(async (session: ExerciseSession, targetWorkoutId?: string) => {
+    // Check for user in context, fallback to Firebase Auth
+    let currentUser = user;
+    if (!currentUser) {
+      const firebaseUser = auth.currentUser;
+      if (firebaseUser) {
+        currentUser = {
+          userId: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || '',
+        };
+        console.log('Using Firebase Auth user for addExerciseSession:', currentUser.userId);
+      }
+    }
+    
+    if (!currentUser) {
+      console.error('No user available for addExerciseSession');
+      return;
+    }
+    
+    // Determine which workout ID to use
+    let workoutId: string;
+    if (targetWorkoutId) {
+      workoutId = targetWorkoutId;
+    } else if (session.workoutId) {
+      workoutId = session.workoutId;
+    } else if (currentWorkout) {
+      workoutId = currentWorkout.workoutId;
+    } else {
+      console.error('No workout ID available for exercise session');
+      return;
+    }
     
     try {
       const sessionData = {
         ...session,
-        userId: user.userId,
-        workoutId: currentWorkout.workoutId,
+        userId: currentUser.userId,
+        workoutId: workoutId,
       };
       
+      console.log('Adding exercise session to workout:', workoutId);
       const docRef = await addDoc(collection(db, 'exerciseSessions'), sessionData);
       
       const sessionWithId: ExerciseSession = {
@@ -284,17 +315,27 @@ export const [WorkoutProvider, useWorkout] = createContextHook<WorkoutState>(() 
         sessionId: docRef.id,
       };
       
-      // Add to current workout
-      setCurrentWorkout(prev => prev ? {
-        ...prev,
-        exerciseSessions: [...prev.exerciseSessions, sessionWithId],
-      } : null);
+      // Only update current workout state if this session belongs to the current workout
+      if (currentWorkout && currentWorkout.workoutId === workoutId) {
+        console.log('Updating current workout with new exercise session');
+        setCurrentWorkout(prev => prev ? {
+          ...prev,
+          exerciseSessions: [...prev.exerciseSessions, sessionWithId],
+        } : null);
+      } else {
+        console.log('Exercise session saved to different workout than current:', { 
+          sessionWorkoutId: workoutId, 
+          currentWorkoutId: currentWorkout?.workoutId 
+        });
+      }
       
       // Add to exercise history
       setExerciseHistory(prev => ({
         ...prev,
         [session.machineId]: [...(prev[session.machineId] || []), sessionWithId],
       }));
+      
+      console.log('Exercise session successfully saved and added to history');
       
       // Notification will be shown by the calling component
     } catch (error: any) {

@@ -24,7 +24,8 @@ export default function HomeScreen() {
     endWorkout, 
     addExerciseSession,
     getLastSessionForMachine,
-    getMachineInfo
+    getMachineInfo,
+    exerciseHistory
   } = useWorkout();
   const { showNotification } = useNotification();
   const { 
@@ -43,6 +44,7 @@ export default function HomeScreen() {
   const [activeMachineId, setActiveMachineId] = useState<string | null>(null);
   const [pendingSession, setPendingSession] = useState<ExerciseSession | null>(null);
   const [isDevMode] = useState(__DEV__); // Enable dev mode in development builds
+  const [lastSessionCount, setLastSessionCount] = useState(0);
 
   // Handle returning from edit session screen
   useFocusEffect(
@@ -65,15 +67,68 @@ export default function HomeScreen() {
 
   // Update home state based on NFC session status
   useEffect(() => {
+    console.log('UI State Update Check:', {
+      currentSessionId,
+      homeState,
+      currentWorkout: currentWorkout ? {
+        workoutId: currentWorkout.workoutId,
+        exerciseSessions: currentWorkout.exerciseSessions.length
+      } : null,
+      lastPayload: lastPayload ? { m: lastPayload.m } : null
+    });
+
     if (currentSessionId) {
+      // Active NFC session - show session active state
+      console.log('Setting state to session-active');
       setHomeState('session-active');
-      setActiveMachineId(lastPayload?.machine_id || null);
+      setActiveMachineId(lastPayload?.m || null);
+    } else if (currentWorkout && currentWorkout.exerciseSessions.length > 0 && homeState === 'session-active') {
+      // Session completed and exercise data was saved - show session review
+      console.log('Session completed with exercise data - transitioning to session-review');
+      setHomeState('session-review');
+      // Get the most recent exercise session for review
+      const mostRecentSession = currentWorkout.exerciseSessions[currentWorkout.exerciseSessions.length - 1];
+      setPendingSession(mostRecentSession);
     } else if (!currentWorkout && homeState !== 'idle') {
+      // No workout active - return to idle state
+      console.log('No workout - returning to idle');
       setHomeState('idle');
       setActiveMachineId(null);
       setPendingSession(null);
     }
-  }, [currentWorkout, currentSessionId, lastPayload]);
+  }, [currentWorkout, currentSessionId, lastPayload, homeState]);
+
+  // Detect when new exercise sessions are added to exercise history
+  useEffect(() => {
+    const totalSessions = Object.values(exerciseHistory).reduce((total, sessions) => total + sessions.length, 0);
+    console.log('Exercise history changed:', { totalSessions, lastSessionCount, homeState });
+    
+    if (totalSessions > lastSessionCount && homeState === 'session-active' && !currentSessionId) {
+      // New exercise session was added while we were in session-active state and no current session
+      console.log('New exercise session detected - transitioning to session-review');
+      
+      // Find the most recent exercise session across all machines
+      let mostRecentSession: ExerciseSession | null = null;
+      let mostRecentTime = 0;
+      
+      Object.values(exerciseHistory).forEach(sessions => {
+        sessions.forEach(session => {
+          const sessionTime = new Date(session.startedAt).getTime();
+          if (sessionTime > mostRecentTime) {
+            mostRecentTime = sessionTime;
+            mostRecentSession = session;
+          }
+        });
+      });
+      
+      if (mostRecentSession) {
+        setPendingSession(mostRecentSession);
+        setHomeState('session-review');
+      }
+    }
+    
+    setLastSessionCount(totalSessions);
+  }, [exerciseHistory, homeState, currentSessionId, lastSessionCount]);
 
   const handleNFCTap = async () => {
     if (!isNFCSupported) {
