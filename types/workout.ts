@@ -17,7 +17,7 @@ export interface Set {
   sessionId: string;
   weightLbs: number;
   reps: number;
-  durationMs: number;
+  // Duration will be calculated from app timestamps, not device data
 }
 
 export interface ExerciseSession {
@@ -51,50 +51,16 @@ export interface SessionSummary {
 }
 
 // NFC Payloads
-export interface NFCPayload {
-  v: number;                    // Version
-  machine_id: string;           // Machine identifier
-  machine_name?: string;        // Human readable name
-  machine_type: string;         // Type of machine
-  fw?: string;                  // Firmware version
-  
-  // Exercise information
-  exercise_id: string;          // Exercise identifier
-  exercise_name?: string;       // Human readable exercise name
-  
-  // Multiple session IDs (newest first priority)
-  session_id_a: string;         // Current/newest session (fresh tap-in)
-  session_id_b?: string;        // Previous session
-  session_id_c?: string;        // Session before that
-  session_id_d?: string;        // Oldest session
-  
-  // Session data for completed sessions (only b, c, d have workout data)
-  session_data_b?: {
-    session_duration_ms: number; // Total exercise time (first rep to last rep)
-    sets: Array<{
-      weight_lbs: number;       // Weight in lbs
-      reps: number;             // Reps
-      duration_ms: number;      // Individual set duration
-    }>;
-  };
-  
-  session_data_c?: {
-    session_duration_ms: number; // Total exercise time (first rep to last rep)
-    sets: Array<{
-      weight_lbs: number;       // Weight in lbs
-      reps: number;             // Reps
-      duration_ms: number;      // Individual set duration
-    }>;
-  };
-  
-  session_data_d?: {
-    session_duration_ms: number; // Total exercise time (first rep to last rep)
-    sets: Array<{
-      weight_lbs: number;       // Weight in lbs
-      reps: number;             // Reps
-      duration_ms: number;      // Individual set duration
-    }>;
-  };
+// Compact NFC payload format (size-optimized)
+export interface CompactNFCPayload {
+  m: string;                    // machine_id
+  t: string;                    // machine_type  
+  a: string;                    // next session (A) id, base36 short id (6 chars)
+  s: Array<[                   // sessions array
+    string,                     // role: "b" (active), "c" (last completed), "d" (older completed)
+    string,                     // session id, base36 6-char
+    Array<[number, number]>     // sets: [weight_lbs, reps] (weight can be -1 if unknown)
+  ]>;
 }
 
 // Legacy interfaces for backward compatibility

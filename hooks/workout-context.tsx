@@ -10,7 +10,7 @@ import {
   where, 
   orderBy
 } from 'firebase/firestore';
-import { db } from '@/constants/firebase';
+import { db, auth } from '@/constants/firebase';
 import { ExerciseSession, WorkoutSession, Machine } from '@/types/workout';
 import { useAuth } from '@/hooks/auth-context';
 
@@ -21,7 +21,7 @@ interface WorkoutState {
   workoutHistory: WorkoutSession[];
   exerciseHistory: Record<string, ExerciseSession[]>;
   isLoading: boolean;
-  startWorkout: () => Promise<void>;
+  startWorkout: () => Promise<WorkoutSession>;
   endWorkout: () => Promise<void>;
   addExerciseSession: (session: ExerciseSession) => Promise<void>;
   getLastSessionForMachine: (machineId: string) => ExerciseSession | null;
@@ -146,14 +146,27 @@ export const [WorkoutProvider, useWorkout] = createContextHook<WorkoutState>(() 
 
 
   const startWorkout = useCallback(async () => {
-    if (!user) {
+    // Check for user in context, fallback to Firebase Auth
+    let currentUser = user;
+    if (!currentUser) {
+      const firebaseUser = auth.currentUser;
+      if (firebaseUser) {
+        currentUser = {
+          userId: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || '',
+        };
+      }
+    }
+    
+    if (!currentUser) {
       throw new Error('User not authenticated');
     }
     
     try {
-      console.log('Starting workout for user:', user.userId);
+      console.log('Starting workout for user:', currentUser.userId);
       const newWorkout = {
-        userId: user.userId,
+        userId: currentUser.userId,
         startedAt: new Date().toISOString(),
         exerciseSessions: [],
       };
@@ -168,6 +181,7 @@ export const [WorkoutProvider, useWorkout] = createContextHook<WorkoutState>(() 
       };
       
       setCurrentWorkout(workoutWithId);
+      return workoutWithId;
     } catch (error: any) {
       console.error('ERROR Failed to start workout:', error);
       throw new Error('Failed to start workout');

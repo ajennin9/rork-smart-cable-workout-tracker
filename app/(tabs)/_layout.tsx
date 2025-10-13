@@ -15,7 +15,9 @@ export default function TabLayout() {
     }
   }, [isAuthenticated, isLoading]);
 
-  if (!isAuthenticated) {
+  // Don't unmount during loading or temporary auth state changes
+  // Only redirect, but keep the component mounted until navigation completes
+  if (!isLoading && !isAuthenticated) {
     return null;
   }
 

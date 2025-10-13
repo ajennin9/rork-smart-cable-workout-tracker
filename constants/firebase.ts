@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 // Your Firebase config - replace with your actual config
@@ -18,6 +18,13 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize Auth
 const auth = getAuth(app);
+
+// Try to set persistence for React Native
+try {
+  setPersistence(auth, browserLocalPersistence);
+} catch (error) {
+  console.warn('Could not set persistence:', error);
+}
 
 // Initialize Firestore
 const db = getFirestore(app);
